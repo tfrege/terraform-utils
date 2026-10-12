@@ -1,6 +1,6 @@
-# terraform-utils
+# terraform-validations
 
-A small toolbox of copy-paste Terraform snippets I reach for again and again when building AWS modules. Two files, two jobs: ready-made input **validation rules**, and a cheat sheet of **environment data sources**. Grab what you need, drop it into your module, tweak, done.
+A small toolbox of copy-paste Terraform snippets I reach for again and again when building AWS modules: ready-made input **validation rules**, a cheat sheet of **environment data sources**, and the **locals patterns** developers re-derive on every module. Grab what you need, drop it into your module, tweak, done.
 
 ## What's inside
 
@@ -8,6 +8,9 @@ A small toolbox of copy-paste Terraform snippets I reach for again and again whe
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`vars-validations.tf`](./vars-validations.tf)             | `variable` blocks with built-in `validation {}` rules — reject bad regions, malformed ARNs, wrong-shaped resource IDs, and empty lists at plan time instead of mid-apply. |
 | [`get-environmental-data.tf`](./get-environmental-data.tf) | Common AWS data sources (account ID, partition, region, AZs, default VPC, latest AL2023 AMI) plus a `locals` block showing how to use each one.                           |
+| [`transform-variables.tf`](./transform-variables.tf)       | `locals` that reshape a nested, friendly input variable into the flat `for_each`-ready maps resources consume — flatten, filter, merge defaults, stable composite keys.   |
+| [`tags.tf`](./tags.tf)                                     | Two-layer tagging: a provider `default_tags` set plus a `merge()` local for per-resource tags on top of it.                                                               |
+| [`cidr-subnets.tf`](./cidr-subnets.tf)                     | `cidrsubnet()` / `cidrsubnets()` patterns that carve a VPC CIDR into per-AZ subnet blocks without hardcoding addresses.                                                   |
 
 ## Why bother
 
@@ -48,6 +51,18 @@ Techniques used: `length()` for size, `contains([...], var.x)` for fixed option 
 ## Environment data (`get-environmental-data.tf`)
 
 Data sources for the account and region Terraform is pointed at — `aws_caller_identity`, `aws_partition`, `aws_region`, `aws_availability_zones`, `aws_regions`, `aws_service_principal`, `aws_vpc` (default), `aws_ami` (latest AL2023), and `aws_iam_account_alias`. Each one has an inline `# Reference as:` note, and the `locals` block at the bottom shows practical uses: three-AZ slices, an az-to-index map, partition-aware ARNs, GovCloud/China detection, and a `common_tags` map.
+
+## Reshaping variables for `for_each` (`transform-variables.tf`)
+
+`for_each` needs a map with stable, unique keys, but humans write nested, readable variables. This file walks a nested `vpcs` input (VPCs each holding a list of subnets) through the full reshape: **filter** out disabled entries, **flatten** the nested lists into one list of objects (carrying the parent key down), **merge** per-element defaults, and **project** to a map keyed by a stable composite key like `"vpc1/app-a"` so adding or removing elements never churns unrelated resources. Also shows the list-to-map projection `for_each` requires.
+
+## Tagging (`tags.tf`)
+
+Two layers that stack: a provider `default_tags` block so every taggable resource inherits `Environment`, `CostCenter`, and `ManagedBy` automatically, plus a `merge(local.default_tags, {...})` local for layering per-resource tags on top. Use the merge form for resources that need extra keys or don't honor provider defaults.
+
+## CIDR math (`cidr-subnets.tf`)
+
+Carve a parent VPC CIDR into subnets without hardcoding addresses. Shows `cidrsubnet()` in a loop for uniform per-AZ `/24`s (private and non-overlapping public ranges), `cidrsubnets()` for several mixed-size blocks in one call, and how to zip AZs to CIDRs into a `for_each`-ready map that pairs with the AZ data source in `get-environmental-data.tf`.
 
 ## How to use
 
