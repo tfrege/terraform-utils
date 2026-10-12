@@ -1,4 +1,4 @@
-# terraform-validations
+# terraform-utils
 
 A small toolbox of copy-paste Terraform snippets I reach for again and again when building AWS modules. Two files, two jobs: ready-made input **validation rules**, and a cheat sheet of **environment data sources**. Grab what you need, drop it into your module, tweak, done.
 
